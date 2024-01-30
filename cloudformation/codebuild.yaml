@@ -21,6 +21,8 @@ Resources:
                 BranchName: main
               OutputArtifacts:
                 - Name: SourceCode
+        - Name: Build
+          Actions:
             - Name: Build
               ActionTypeId:
                 Category: Build
@@ -88,6 +90,15 @@ Resources:
                 Resource:
                   - !GetAtt ArtifactBucket.Arn
                   - !Sub ${ArtifactBucket.Arn}/*
+        - PolicyName: "GitCommitCode"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Efect: "Allow"
+                Action:
+                  - codecommit:*
+                Resource:
+                  - arn:aws:codecommit:us-east-1:180658164846:esgf2_search
         - PolicyName: "StartCodeBuild"
           PolicyDocument:
             Version: "2012-10-17"
