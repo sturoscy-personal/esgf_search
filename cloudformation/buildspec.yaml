@@ -3,9 +3,6 @@ version: 0.2
 phases:
   pre_build:
     commands:
-      - echo Zipping project and uploading to S3
-      - zip -r $PROJECT_FOLDER/esgf2-index.zip $PROJECT_FOLDER
-      - aws s3api put-object --bucket $S3_CODE_BUCKET text-content --key esgf2-index.zip --body $PROJECT_FOLDER/esgf2-index.zip
       - echo Logging in to Amazon ECR
       - aws ecr get-login-password --profile default --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
   build:
