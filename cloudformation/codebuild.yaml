@@ -17,7 +17,7 @@ Resources:
                 Provider: CodeCommit
                 Version: "1"
               Configuration:
-                RepositoryName: esgf2_index
+                RepositoryName: esgf2_search
                 BranchName: main
               OutputArtifacts:
                 - Name: SourceCode
@@ -59,7 +59,7 @@ Resources:
       ServiceRole: !GetAtt CodeBuildRole.Arn
       Source:
         Type: CODEPIPELINE
-        BuildSpec: cloudformation/buildspec.yml
+        BuildSpec: cloudformation/buildspec.yaml
 
   ECRRepository:
     Type: AWS::ECR::Repository
@@ -94,7 +94,7 @@ Resources:
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
-              - Efect: "Allow"
+              - Effect: "Allow"
                 Action:
                   - codecommit:*
                 Resource:
