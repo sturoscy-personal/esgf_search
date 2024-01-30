@@ -15,7 +15,7 @@ Resources:
           - Name: AWS_ECR_REPOSITORY_URI
             Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}
           - Name: IMAGE_NAME
-            Value: esgf2_search
+            Value: !Ref ECRRepository
           - Name: IMAGE_TAG
             Value: latest
           - Name: ProjectFolder
@@ -30,16 +30,6 @@ Resources:
         Type: CODECOMMIT
         Location: !Sub https://git-codecommit.${AWS::Region}.amazonaws.com/v1/repos/${ECRRepository}
         BuildSpec: cloudformation/buildspec.yml
-
-  CodeCommitRepository:
-    Type: AWS::CodeCommit::Repository
-    Properties:
-      RepositoryName: esgf2-index
-      Code:
-        BranchName: main
-        S3:
-          Bucket: esgf2-index-bucket
-          Key: esgf2-index.zip
 
   ECRRepository:
     Type: AWS::ECR::Repository
