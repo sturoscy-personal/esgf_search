@@ -4,32 +4,47 @@ Resources:
     Properties:
       Artifacts:
         Type: CODEPIPELINE
-      Description: "Codebuild project to push fastapi image to ecr"
+      Description: Codebuild project to push fastapi image to ecr
       Environment:
         ComputeType: BUILD_GENERAL1_SMALL
         EnvironmentVariables:
           - Name: AWS_DEFAULT_REGION
             Value: !Ref AWS::Region
           - Name: AWS_ACCOUNT_ID
-            Value: !Ref "AWS::AccountId"
+            Value: !Ref AWS::AccountId
           - Name: AWS_ECR_REPOSITORY_URI
-            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcrRepository}
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}
           - Name: IMAGE_NAME
             Value: esgf2_search
           - Name: IMAGE_TAG
-            Value: "latest"
-        Image: "aws/codebuild/standard:5.0"
+            Value: latest
+          - Name: ProjectFolder
+            Value: /Users/sturoscy/Projects/python/argonne/esgf_search
+          - Name: S3_CODE_BUCKET
+            Value: esgf2-index-bucket
+        Image: aws/codebuild/standard:5.0
         PrivilegedMode: true
-        Type: "LINUX_CONTAINER"
+        Type: LINUX_CONTAINER
       ServiceRole: !GetAtt CodeBuildRole.Arn
       Source:
-        Type: "CODEPIPELINE"
-        BuildSpec: buildspec.yml
+        Type: CODECOMMIT
+        Location: !Sub https://git-codecommit.${AWS::Region}.amazonaws.com/v1/repos/${ECRRepository}
+        BuildSpec: cloudformation/buildspec.yml
 
-  EcrRepository:
+  CodeCommitRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: esgf2-index
+      Code:
+        BranchName: main
+        S3:
+          Bucket: esgf2-index-bucket
+          Key: esgf2-index.zip
+
+  ECRRepository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: esgf2_search
+      RepositoryName: esgf2-index
 
   CodeBuildRole:
     Type: AWS::IAM::Role
@@ -44,7 +59,7 @@ Resources:
             Action:
               - "sts:AssumeRole"
       Policies:
-        - PolicyName: "PushImageToEcr"
+        - PolicyName: PushImageToEcr
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -59,7 +74,7 @@ Resources:
                   - ecr:UploadLayerPart
                   - ecr:GetAuthorizationToken
                 Resource: "*"
-        - PolicyName: "CodeBuildLogsRole"
+        - PolicyName: CodeBuildLogsRole
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -69,7 +84,7 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource:
-                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*"
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*
         - PolicyName: "GetAndPutArtifacts"
           PolicyDocument:
             Version: "2012-10-17"
