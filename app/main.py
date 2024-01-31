@@ -71,12 +71,29 @@ def read_root(**search):
     sc = SearchClient()
     response = sc.post_search(
         "d927e2d9-ccdb-48e4-b05d-adbc3d97bbc5",  # ALCF globus index uuid
-        query
+        query,
         limit=limit, 
         offset=offset
     )
 
-    return response["gmeta"]
+    fr=response["facet_results"]
+    facet_map = {}
+    for x in fr:
+        arr = []
+        for y in x["buckets"]:
+            arr.append(y['value'])
+            arr.append(y['count'])
+        facet_map[x['name']] = arr
+
+    docs = []
+    for x in response["gmeta"]:
+        rec = x['entries'][0]['content']
+        rec['id'] = x['subject']
+
+    ret = { "response" : { "num_found" : response["total"], "docs" : docs } ,
+           "facet_counts" : { "facet_field" : facet_map } }
+
+    return ret
 
 
 handler = Mangum(app)
