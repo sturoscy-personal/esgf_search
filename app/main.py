@@ -31,6 +31,7 @@ def read_root(**search):
     # the filters can be much more complex, here we are just matching
     # any and splitting the argument strings with a comma
 
+    # Handle the non-facet esg-search keys, remove from the basic query
     limit = 10
     offset = 0
     if "limit" in search:
@@ -56,6 +57,7 @@ def read_root(**search):
             pass
     facets = search.pop['facets']
 
+    #  iterate through the remaining keys to be used as search filters
     query = SearchQuery()
     for x in search:
         y = search[x]
@@ -65,6 +67,7 @@ def read_root(**search):
             y = [y]
         query.add_filter(x, y, type="match_any" )
 
+    # handle the facets
     for ff in facets.split(','):
         query.add_facet(ff, ff)
 
@@ -76,6 +79,7 @@ def read_root(**search):
         offset=offset
     )
 
+    # unpack the response: facets and records (gmeta/docs)
     fr=response["facet_results"]
     facet_map = {}
     for x in fr:
