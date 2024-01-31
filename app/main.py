@@ -16,7 +16,7 @@ uvicorn concept:app --reload
 """
 
 from fastapi import FastAPI
-from globus_sdk import SearchClient
+from globus_sdk import SearchClient, SearchQuery
 from mangum import Mangum
 
 app = FastAPI()
@@ -26,29 +26,56 @@ app = FastAPI()
 
 
 @app.get("/")
-def read_root(
-    experiment_id: str | None = None,
-    source_id: str | None = None,
-    variable_id: str | None = None,
-):
+def read_root(**search):
     kwargs = locals()  # all the function arguments as keywords
     # the filters can be much more complex, here we are just matching
     # any and splitting the argument strings with a comma
-    filters = [
-        {"type": "match_any", "field_name": f"{key}", "values": val.split(",")}
-        for key, val in kwargs.items()
-        if val is not None
-    ]
-    response = SearchClient().post_search(
+
+    limit = 10
+    offset = 0
+    if "limit" in search:
+        limit = search.pop("limit")
+    if "offset" in search:
+        offset = search.pop("offset")
+
+    if "from" in search:
+        from_field = search.pop("from")
+
+    if "to" in search:
+        to_field = search.pop("to")
+
+    del search["format"]
+
+    if "type" not in search:
+        search["type"] = "Dataset"
+    elif search["type"] = "File":
+        if "dataset_id" in search:
+            id_parm = search["dataset_id"]
+        else:
+            #   this is a free file query
+            pass
+    facets = search.pop['facets']
+
+    query = SearchQuery()
+    for x in search:
+        y = search[x]
+        if ',' in y:
+            y = split(',')
+        else:
+            y = [y]
+        query.add_filter(x, y, type="match_any" )
+
+    for ff in facets.split(','):
+        query.add_facet(ff, ff)
+
+    sc = SearchClient()
+    response = sc.post_search(
         "d927e2d9-ccdb-48e4-b05d-adbc3d97bbc5",  # ALCF globus index uuid
-        {
-            "q": "",
-            "filters": filters,
-            "facets": [],
-            "sort": [],
-        },
-        limit=10,
+        query
+        limit=limit, 
+        offset=offset
     )
+
     return response["gmeta"]
 
 
