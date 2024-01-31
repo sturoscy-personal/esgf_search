@@ -19,9 +19,15 @@ from fastapi import FastAPI
 from globus_sdk import SearchClient
 from mangum import Mangum
 
-app = FastAPI()
+app = FastAPI(
+    description="Serverless ESGF2 Globus Index API",
+    docs_url="/dev/docs",
+    openapi_url="/dev/openapi.json",
+    title="ESGF2 Index",
+    contact="sturoscy@anl.gov",
+)
 
-# the parameters of this function become the things you can query in the url
+# The parameters of this function become the things you can query in the url
 # and they get automatically type-checked.
 
 
