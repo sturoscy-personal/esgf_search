@@ -21,6 +21,7 @@ venv
 docs.zip
 archive.zip
 node_modules/
+.serverless/
 
 # vim temporary files
 *~

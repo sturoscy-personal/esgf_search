@@ -21,8 +21,6 @@ from mangum import Mangum
 
 app = FastAPI(
     description="Serverless ESGF2 Globus Index API",
-    docs_url="/dev/docs",
-    openapi_url="/dev/openapi.json",
     title="ESGF2 Index",
     contact="sturoscy@anl.gov",
 )

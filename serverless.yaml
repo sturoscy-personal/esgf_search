@@ -1,7 +1,7 @@
-org: argonne
-app: esgf2-index-serverless
-service: esgf2-index-serverless
+# org: sturoscyglobus
+# app: esgf2-index-serverless
 frameworkVersion: "3"
+service: esgf2-index-serverless
 
 provider:
   name: aws
