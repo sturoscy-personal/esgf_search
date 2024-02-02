@@ -16,32 +16,23 @@ uvicorn concept:app --reload
 """
 
 from fastapi import FastAPI
-from globus_sdk import SearchClient, SearchQuery
+from globus_sdk import SearchClient
 from mangum import Mangum
 
-app = FastAPI(
-    description="Serverless ESGF2 Globus Index API",
-    title="ESGF2 Index",
-    contact="sturoscy@anl.gov",
-)
+app = FastAPI()
 
-# The parameters of this function become the things you can query in the url
+# the parameters of this function become the things you can query in the url
 # and they get automatically type-checked.
 
+def globus_search(search):
 
-@app.get("/")
-def read_root(**search):
-    kwargs = locals()  # all the function arguments as keywords
-    # the filters can be much more complex, here we are just matching
-    # any and splitting the argument strings with a comma
-
-    # Handle the non-facet esg-search keys, remove from the basic query
+#    print(search)
     limit = 10
     offset = 0
     if "limit" in search:
-        limit = search.pop("limit")
+        limit = int(search.pop("limit")[0])
     if "offset" in search:
-        offset = search.pop("offset")
+        offset = int(search.pop("offset")[0])
 
     if "from" in search:
         from_field = search.pop("from")
@@ -49,59 +40,88 @@ def read_root(**search):
     if "to" in search:
         to_field = search.pop("to")
 
-    del search["format"]
+    # remove facets that don't fit:
+    if "format" in search:
+        del search["format"]
+    if "query" in search:
+        del search["query"]
 
-    if "type" not in search:
-        search["type"] = "Dataset"
-    elif search["type"] = "File":
+    if "type" not in search: # or search["type"] == ["Dataset"]:
+        search["type"] = "Dataset" 
+    elif search["type"] == ["File"]:
+        #  File Search
+        search["type"] = "File"
         if "dataset_id" in search:
             id_parm = search["dataset_id"]
+            query = ( 
+                SearchQuery()
+                .add_filter("dataset_id", id_parm)
+            )
+            resp = SearchClient().post_search(INDEX_ID, query, limit=1)
+            docs = []
+            x = resp["gmeta"]
+            rec = x[0]['entries'][0]['content']
+            rec['id'] = x[0]['subject']
+            docs.append(rec)       
+
+            ret = { "response" : { "numFound" : resp["total"], "docs" : docs } }
+            return ret
         else:
             #   this is a free file query
             pass
-    facets = search.pop['facets']
 
-    #  iterate through the remaining keys to be used as search filters
+    facets = [""]
+    if "facets" in search:
+        facets = search.pop('facets')
+
     query = SearchQuery()
+
     for x in search:
         y = search[x]
-        if ',' in y:
-            y = split(',')
-        else:
-            y = [y]
+        if ',' in y[0]:
+            y = y[0].split(',')
         query.add_filter(x, y, type="match_any" )
 
     # handle the facets
-    for ff in facets.split(','):
-        query.add_facet(ff, ff)
+    for ff in facets[0].split(', '):
+       query.add_facet(ff, ff)
 
-    sc = SearchClient()
-    response = sc.post_search(
-        "d927e2d9-ccdb-48e4-b05d-adbc3d97bbc5",  # ALCF globus index uuid
-        query,
-        limit=limit, 
-        offset=offset
-    )
-
+    response = SearchClient().post_search(INDEX_ID, query, limit=limit, offset=offset)
     # unpack the response: facets and records (gmeta/docs)
-    fr=response["facet_results"]
     facet_map = {}
-    for x in fr:
-        arr = []
-        for y in x["buckets"]:
-            arr.append(y['value'])
-            arr.append(y['count'])
-        facet_map[x['name']] = arr
+    if "facet_results" in response:
+        fr=response["facet_results"]
+        for x in fr:
+            arr = []
+            for y in x["buckets"]:
+                arr.append(y['value'])
+                arr.append(y['count'])
+            facet_map[x['name']] = arr
 
+    # unpack the dataset Records
     docs = []
     for x in response["gmeta"]:
         rec = x['entries'][0]['content']
         rec['id'] = x['subject']
+        docs.append(rec)
 
-    ret = { "response" : { "num_found" : response["total"], "docs" : docs } ,
-           "facet_counts" : { "facet_field" : facet_map } }
+    # package the response
+    ret = { "response" : { "numFound" : response["total"], "docs" : docs } }
+    if len(facet_map) > 0:
+           ret["facet_counts"] = { "facet_fields" : facet_map } 
 
     return ret
+
+
+@app.get("/")
+def read_root(
+    experiment_id: str | None = None,
+    source_id: str | None = None,
+    variable_id: str | None = None,
+    facets: str | None = None
+):
+    kwargs = locals()  # all the function arguments as keywords
+    return globus_search(kwargs)
 
 
 handler = Mangum(app)
