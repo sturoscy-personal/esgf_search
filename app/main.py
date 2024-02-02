@@ -21,9 +21,6 @@ from mangum import Mangum
 
 app = FastAPI()
 
-# the parameters of this function become the things you can query in the url
-# and they get automatically type-checked.
-
 def globus_search(search):
 
 #    print(search)
@@ -112,7 +109,6 @@ def globus_search(search):
 
     return ret
 
-
 @app.get("/")
 def read_root(
     experiment_id: str | None = None,
@@ -120,6 +116,11 @@ def read_root(
     variable_id: str | None = None,
     facets: str | None = None
 ):
+    """
+    the parameters of this function become the things you can query in the url
+    and they get automatically type-checked.
+
+    """
     kwargs = locals()  # all the function arguments as keywords
     return globus_search(kwargs)
 
