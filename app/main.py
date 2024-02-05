@@ -16,78 +16,98 @@ uvicorn concept:app --reload
 """
 
 from fastapi import FastAPI
-from globus_sdk import SearchClient
+from globus_sdk import SearchClient, SearchQuery
 from mangum import Mangum
 
 app = FastAPI()
 
-def globus_search(search):
 
-#    print(search)
-    limit = 10
-    offset = 0
-    if "limit" in search:
-        limit = int(search.pop("limit")[0])
-    if "offset" in search:
-        offset = int(search.pop("offset")[0])
+def globus_search(search):
+    INDEX_ID = "d927e2d9-ccdb-48e4-b05d-adbc3d97bbc5"
+
+    limit = int(search.pop("limit")[0]) if "limit" in search else 10
+    offset = int(search.pop("offset")[0]) if "offset" in search else 0
+
+    query = SearchQuery(q="*").set_limit(limit).set_offset(offset)
+
+    # Add default facets
+    query.add_facet("Activity ID", "activity_id")
+    query.add_facet("Data Node", "data_node")
+    query.add_facet("Experiment ID", "experiment_id")
+    query.add_facet("Frequency", "frequency")
+    query.add_facet("Grid Label", "grid_label")
+    query.add_facet("Institution ID", "institution_id")
+    query.add_facet("Nominal Resolution", "nominal_resolution")
+    query.add_facet("Realm", "realm")
+    query.add_facet("Result Type", "result_type")
+    query.add_facet("Source ID", "source_id")
+    query.add_facet("Source Type", "source_type")
+    query.add_facet("Table ID", "table_id")
+    query.add_facet("Variable ID", "variable_id")
+    query.add_facet("Variant Label", "variant_label")
+    query.add_facet("Version Type", "version_type")
 
     if "from" in search:
         from_field = search.pop("from")
-
     if "to" in search:
         to_field = search.pop("to")
 
-    # remove facets that don't fit:
+    # Clean up facets that don't fit:
     if "format" in search:
         del search["format"]
     if "query" in search:
         del search["query"]
 
-    if "type" not in search: # or search["type"] == ["Dataset"]:
-        search["type"] = "Dataset" 
-    elif search["type"] == ["File"]:
-        #  File Search
-        search["type"] = "File"
-        if "dataset_id" in search:
-            id_parm = search["dataset_id"]
-            query = ( 
-                SearchQuery()
-                .add_filter("dataset_id", id_parm)
-            )
-            resp = SearchClient().post_search(INDEX_ID, query, limit=1)
-            docs = []
-            x = resp["gmeta"]
-            rec = x[0]['entries'][0]['content']
-            rec['id'] = x[0]['subject']
-            docs.append(rec)       
+    # File or Dataset filter
+    if "type" not in search:
+        query.add_filter("type", ["Dataset"], type="match_any")
+    else:
+        query.add_filter("type", [search["type"]], type="match_any")
+        if search["type"] == ["File"]:
+            if "dataset_id" in search:
+                id_parm = search["dataset_id"]
+                query = (
+                    SearchQuery()
+                    .add_filter("dataset_id", id_parm)
+                    .set_limit(1)
+                )
+                resp = SearchClient().post_search(INDEX_ID, query, limit=1)
 
-            ret = { "response" : { "numFound" : resp["total"], "docs" : docs } }
-            return ret
-        else:
-            #   this is a free file query
-            pass
+                x = resp["gmeta"]
+                rec = x[0]['entries'][0]['content']
+                rec['id'] = x[0]['subject']
+                docs = [].append(rec)
 
-    facets = [""]
+                ret = {"response": {"numFound": resp["total"], "docs": docs}}
+                return ret
+            else:
+                # This is a free file query
+                pass
+
+    # Filters from query params
+    for param in search:
+        value = search[param]
+        if value:
+            value = value.split(',') if ',' in value else [value]
+            query.add_filter(param, value, type="match_any")
+
+    # Handle Additional Facets
     if "facets" in search:
         facets = search.pop('facets')
+        for ff in facets[0].split(', '):
+            query.add_facet(ff, ff)
 
-    query = SearchQuery()
+    response = SearchClient().post_search(
+        INDEX_ID,
+        query,
+        limit=limit,
+        offset=offset,
+    )
 
-    for x in search:
-        y = search[x]
-        if ',' in y[0]:
-            y = y[0].split(',')
-        query.add_filter(x, y, type="match_any" )
-
-    # handle the facets
-    for ff in facets[0].split(', '):
-       query.add_facet(ff, ff)
-
-    response = SearchClient().post_search(INDEX_ID, query, limit=limit, offset=offset)
-    # unpack the response: facets and records (gmeta/docs)
+    # Unpack the response: facets and records (gmeta/docs)
     facet_map = {}
     if "facet_results" in response:
-        fr=response["facet_results"]
+        fr = response["facet_results"]
         for x in fr:
             arr = []
             for y in x["buckets"]:
@@ -95,33 +115,34 @@ def globus_search(search):
                 arr.append(y['count'])
             facet_map[x['name']] = arr
 
-    # unpack the dataset Records
+    # Unpack the dataset Records
     docs = []
     for x in response["gmeta"]:
         rec = x['entries'][0]['content']
         rec['id'] = x['subject']
         docs.append(rec)
 
-    # package the response
-    ret = { "response" : { "numFound" : response["total"], "docs" : docs } }
+    # Package the response
+    ret = {"response": {"numFound": response["total"], "docs": docs}}
     if len(facet_map) > 0:
-           ret["facet_counts"] = { "facet_fields" : facet_map } 
+        ret["facet_counts"] = {"facet_fields": facet_map}
 
     return ret
 
-@app.get("/")
+
+@app.get("/search")
 def read_root(
+    activity_id: str | None = None,
     experiment_id: str | None = None,
     source_id: str | None = None,
     variable_id: str | None = None,
-    facets: str | None = None
 ):
     """
-    the parameters of this function become the things you can query in the url
+    The parameters of this function become the things you can query in the url
     and they get automatically type-checked.
-
     """
     kwargs = locals()  # all the function arguments as keywords
+    print(kwargs)
     return globus_search(kwargs)
 
 
