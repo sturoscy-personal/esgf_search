@@ -22,7 +22,7 @@ from mangum import Mangum
 app = FastAPI()
 
 
-def globus_search(search):
+def globus_search_metagrid_conversion(search):
     INDEX_ID = "d927e2d9-ccdb-48e4-b05d-adbc3d97bbc5"
 
     limit = int(search.pop("limit")[0]) if "limit" in search else 10
@@ -47,10 +47,8 @@ def globus_search(search):
     query.add_facet("Variant Label", "variant_label")
     query.add_facet("Version Type", "version_type")
 
-    if "from" in search:
-        from_field = search.pop("from")
-    if "to" in search:
-        to_field = search.pop("to")
+    # from_field = search.pop("from") if "from" in search else ""
+    # to_field = search.pop("to") if "to" in search else ""
 
     # Clean up facets that don't fit:
     if "format" in search:
@@ -130,8 +128,27 @@ def globus_search(search):
     return ret
 
 
-@app.get("/search")
-def read_root(
+def globus_search(search):
+    filters = [
+        {"type": "match_any", "field_name": f"{key}", "values": val.split(",")}
+        for key, val in search.items()
+        if val is not None
+    ]
+    response = SearchClient().post_search(
+        "d927e2d9-ccdb-48e4-b05d-adbc3d97bbc5",  # ALCF globus index uuid
+        {
+            "q": "",
+            "filters": filters,
+            "facets": [],
+            "sort": [],
+        },
+        limit=10,
+    )
+    return response["gmeta"]
+
+
+@app.get("/")
+async def read_root(
     activity_id: str | None = None,
     experiment_id: str | None = None,
     source_id: str | None = None,
@@ -141,9 +158,7 @@ def read_root(
     The parameters of this function become the things you can query in the url
     and they get automatically type-checked.
     """
-    kwargs = locals()  # all the function arguments as keywords
-    print(kwargs)
-    return globus_search(kwargs)
+    return globus_search_metagrid_conversion(locals())
 
 
 handler = Mangum(app)
