@@ -23,6 +23,8 @@ archive.zip
 node_modules/
 .serverless/
 
+.aws-sam/
+
 # vim temporary files
 *~
 .*.sw?
