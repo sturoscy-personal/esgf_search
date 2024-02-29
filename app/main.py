@@ -14,12 +14,13 @@ app = FastAPI(root_path="/develop")
 def globus_search_metagrid_conversion(search):
     INDEX_ID = "d927e2d9-ccdb-48e4-b05d-adbc3d97bbc5"
 
+    query = SearchQuery(q=search.get("q", "*"))
+
+    # Limit and offset
     limit = int(search.pop("limit")[0]) if "limit" in search else 10
     offset = int(search.pop("offset")[0]) if "offset" in search else 0
 
-    query = SearchQuery(q="*").set_limit(limit).set_offset(offset)
-
-    # Facets and filters from pydantic models
+    # Facets from pydantic models
     common = search.pop("common")
     system = search.pop("system")
     if "cmip6" in search:
@@ -28,7 +29,6 @@ def globus_search_metagrid_conversion(search):
             pass
 
     # Add default facets
-    # This is bottleneck calculating all the facets
     # query.add_facet("Activity ID", "activity_id")
     # query.add_facet("Data Node", "data_node")
     # query.add_facet("Experiment ID", "experiment_id")
