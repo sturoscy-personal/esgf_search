@@ -10,15 +10,15 @@ from typing import Annotated
 
 app = FastAPI(root_path="/develop")
 
+INDEX_ID = "d927e2d9-ccdb-48e4-b05d-adbc3d97bbc5"
+
 
 def globus_search_metagrid_conversion(search):
-    INDEX_ID = "d927e2d9-ccdb-48e4-b05d-adbc3d97bbc5"
-
     query = SearchQuery(q=search.get("q", "*"))
 
     # Limit and offset
-    limit = int(search.pop("limit")[0]) if "limit" in search else 10
-    offset = int(search.pop("offset")[0]) if "offset" in search else 0
+    limit = search.get("limit", 10)
+    offset = search.get("offset", 0)
 
     # Facets from pydantic models
     common = search.pop("common")
@@ -77,7 +77,7 @@ def globus_search_metagrid_conversion(search):
         value = search[param]
         if value:
             value = value.split(",") if "," in value else [value]
-            query.add_filter(param, value, type="match_any")
+            # query.add_filter(param, value, type="match_any")
 
     response = SearchClient().post_search(
         INDEX_ID,
